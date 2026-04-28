@@ -4,6 +4,8 @@ BEGIN;
 
     SET client_min_messages TO warning;
 
+    \i xt/data/42-pg/Base.sql
+
     -- Plan the tests.
     SELECT plan(10);
 
@@ -27,14 +29,14 @@ BEGIN;
     -- Test to make sure the active part can be retrieved by id
     PREPARE test AS SELECT id, partnumber FROM inventory__get_item_by_id(in_id := :active_id);
     \set expected_result 'SELECT ' :active_id ', ' :'active_partnumber'
-    SELECT results_eq('test', :'expected_result', 'Retrieve Part by Part ID Test');
+    SELECT results_eq('test', :'expected_result', 'Retrieve part by part ID test');
     DEALLOCATE test;
 
     -- Test to make sure the obsolete part can be retrieved by part number
     -- The fact that this is an obsolete part is not relevant for this test
     PREPARE test AS SELECT id, partnumber FROM inventory__get_item_by_partnumber(in_partnumber := :'obsolete_partnumber');
     \set expected_result 'SELECT ' :obsolete_id ', ' :'obsolete_partnumber'
-    SELECT results_eq('test', :'expected_result', 'Retrieve Part by Part Number Test');
+    SELECT results_eq('test', :'expected_result', 'Retrieve part by part number test');
     DEALLOCATE test;
 
     -- Test func inventory_get_item_at_day
@@ -47,7 +49,7 @@ BEGIN;
     -- TODO add logic testing
     PREPARE test AS SELECT id, partnumber FROM inventory_get_item_at_day( in_transdate := now()::date, in_partnumber := :'active_partnumber'::text);
     \set expected_result 'SELECT ' :active_id ', ' :'active_partnumber'
-    SELECT results_eq('test', :'expected_result', 'Retrieve Part by Part Number Test');
+    SELECT results_eq('test', :'expected_result', 'Retrieve parts by item at day test');
     DEALLOCATE test;
 
     -- Finish the tests and clean up.
