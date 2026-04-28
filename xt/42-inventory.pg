@@ -1,33 +1,76 @@
 BEGIN;
-    -- Load the TAP functions.
-    CREATE EXTENSION pgtap;
+    -- If not present, then load the TAP functions
+    CREATE EXTENSION IF NOT EXISTS pgtap;
+
     SET client_min_messages TO warning;
 
     -- Plan the tests.
+    SELECT plan(4);
 
-    SELECT plan(3);
-
-    -- Add data
-
-    \i xt/data/42-pg/Base.sql
-
-    -- Validate required tables
-
---    SELECT has_table('business');
-
-    -- Validate required functions
-
-    SELECT has_function('inventory_get_item_at_day',ARRAY['date','text']);
-    SELECT has_function('inventory__get_item_by_partnumber',ARRAY['text']);
+    -- Make sure the necessary tables and functions are present
+    SELECT has_table('parts');
     SELECT has_function('inventory__get_item_by_id',ARRAY['integer']);
+    SELECT has_function('inventory__get_item_by_partnumber',ARRAY['text']);
+    
+    -- Insert active part
+    INSERT into parts (partnumber, description, notes, obsolete)
+    VALUES ('T-14594', 'Test Widget 94', '42-inventory.pg', FALSE)
+    RETURNING id, partnumber
+    \gset active_
+    
+    -- Insert obsolete part, just to have more than 1 part to test against
+    INSERT into parts (partnumber, description, notes, obsolete)
+    VALUES ('T-14593', 'Old Test Widget 93', '42-inventory.pg', TRUE)
+    RETURNING id, partnumber
+    \gset obsolete_
 
-    -- Run tests
+    -- Test to make sure the active part can be retrieved by id
+    PREPARE test AS SELECT id, partnumber FROM inventory__get_item_by_id(in_id := :active_id);
+    \set expected_result 'SELECT ' :active_id ', ' :'active_partnumber'
+    SELECT results_eq('test', :'expected_result', 'Retrieve Part by Part ID Test');
+    DEALLOCATE test;
 
---    PREPARE test AS select ...;
---    SELECT results_eq('test',result,'Description');
---    DEALLOCATE test;
+    -- Test to make sure the obsolete part can be retrieved by part number
+    -- The fact that this is an obsolete part is not relevant for this test
+    PREPARE test AS SELECT id, partnumber FROM inventory__get_item_by_partnumber(in_partnumber := :'obsolete_partnumber');
+    \set expected_result 'SELECT ' :obsolete_id ', ' :'obsolete_partnumber'
+    SELECT results_eq('test', :'expected_result', 'Retrieve Part by Part Number Test');
+    DEALLOCATE test;
 
     -- Finish the tests and clean up.
     SELECT * FROM finish();
+ROLLBACK;
 
+
+BEGIN;
+    -- If not present, then load the TAP functions
+    CREATE EXTENSION IF NOT EXISTS pgtap;
+
+    SET client_min_messages TO warning;
+
+     -- Plan the tests.
+    SELECT plan(5);
+
+    -- Test func inventory_get_item_at_day
+    SELECT has_table('parts');
+    SELECT has_table('assembly');
+    SELECT has_table('transactions');
+    SELECT has_function('inventory_get_item_at_day',ARRAY['date','text']);
+
+    -- Insert active part
+    INSERT into parts (partnumber, description, notes, obsolete)
+    VALUES ('T-14594', 'Test Widget 94', '42-inventory.pg', FALSE)
+    RETURNING id, partnumber
+    \gset active_
+
+    -- Right now this only tests that the function will execute
+    -- TODO add logic testing
+    PREPARE test AS SELECT id, partnumber FROM inventory_get_item_at_day( in_transdate := now()::date, in_partnumber := :'active_partnumber'::text);
+    \set expected_result 'SELECT ' :active_id ', ' :'active_partnumber'
+    SELECT results_eq('test', :'expected_result', 'Retrieve Part by Part Number Test');
+    DEALLOCATE test;
+
+
+    -- Finish the tests and clean up.
+    SELECT * FROM finish();
 ROLLBACK;
