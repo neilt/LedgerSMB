@@ -5,7 +5,7 @@ BEGIN;
     SET client_min_messages TO warning;
 
     -- Plan the tests.
-    SELECT plan(4);
+    SELECT plan(10);
 
     -- Make sure the necessary tables and functions are present
     SELECT has_table('parts');
@@ -37,31 +37,11 @@ BEGIN;
     SELECT results_eq('test', :'expected_result', 'Retrieve Part by Part Number Test');
     DEALLOCATE test;
 
-    -- Finish the tests and clean up.
-    SELECT * FROM finish();
-ROLLBACK;
-
-
-BEGIN;
-    -- If not present, then load the TAP functions
-    CREATE EXTENSION IF NOT EXISTS pgtap;
-
-    SET client_min_messages TO warning;
-
-     -- Plan the tests.
-    SELECT plan(5);
-
     -- Test func inventory_get_item_at_day
     SELECT has_table('parts');
     SELECT has_table('assembly');
     SELECT has_table('transactions');
     SELECT has_function('inventory_get_item_at_day',ARRAY['date','text']);
-
-    -- Insert active part
-    INSERT into parts (partnumber, description, notes, obsolete)
-    VALUES ('T-14594', 'Test Widget 94', '42-inventory.pg', FALSE)
-    RETURNING id, partnumber
-    \gset active_
 
     -- Right now this only tests that the function will execute
     -- TODO add logic testing
@@ -69,7 +49,6 @@ BEGIN;
     \set expected_result 'SELECT ' :active_id ', ' :'active_partnumber'
     SELECT results_eq('test', :'expected_result', 'Retrieve Part by Part Number Test');
     DEALLOCATE test;
-
 
     -- Finish the tests and clean up.
     SELECT * FROM finish();
